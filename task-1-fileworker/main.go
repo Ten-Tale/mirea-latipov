@@ -18,6 +18,13 @@ type option struct {
 }
 
 func main() {
+	if _, err := os.Stat(filesDir); os.IsNotExist(err) {
+		err = os.Mkdir(filesDir, 0777)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 
 	if err := createMenuTemplate("MAIN"); err != nil {
 		log.Fatal("something went wrong")
@@ -67,16 +74,18 @@ func createMenuTemplate(key string) error {
 				"Create file",
 				createFileHandler,
 			},
-			{
-				"Go back",
-				nil,
-			},
 		})
 
 	case "WRITE_TO_FILE":
 		var optionList []option
 
 		fileList := listFiles()
+
+		if len(fileList) == 0 {
+			fmt.Println("No files that you can write to")
+			goToMainMenuHandler()
+			break
+		}
 
 		for _, file := range fileList {
 			optionList = append(optionList, option{
@@ -92,6 +101,12 @@ func createMenuTemplate(key string) error {
 
 		fileList := listFiles()
 
+		if len(fileList) == 0 {
+			fmt.Println("No files that you can read from")
+			goToMainMenuHandler()
+			break
+		}
+
 		for _, file := range fileList {
 			optionList = append(optionList, option{
 				title:   file,
@@ -106,6 +121,12 @@ func createMenuTemplate(key string) error {
 
 		fileList := listFiles()
 
+		if len(fileList) == 0 {
+			fmt.Println("No files to delete")
+			goToMainMenuHandler()
+			break
+		}
+
 		for _, file := range fileList {
 			optionList = append(optionList, option{
 				title:   file,
@@ -114,6 +135,13 @@ func createMenuTemplate(key string) error {
 		}
 
 		applyOptionList(menu, optionList)
+	}
+
+	if key != "MAIN" {
+		menu.Option("Go to main menu", nil, false, func(o wmenu.Opt) error {
+			goToMainMenuHandler()
+			return nil
+		})
 	}
 
 	return menu.Run()
@@ -126,14 +154,6 @@ func applyOptionList(m *wmenu.Menu, ol []option) {
 }
 
 func listFiles() []string {
-	if _, err := os.Stat(filesDir); os.IsNotExist(err) {
-		err = os.Mkdir(filesDir, 0755)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-
 	files, err := os.ReadDir(filesDir)
 
 	if err != nil {
@@ -151,7 +171,7 @@ func listFiles() []string {
 
 func getInputText() string {
 	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Input file name")
+	fmt.Println("Input text")
 	fmt.Println("---------------------")
 
 	text, err := reader.ReadString('\n')
@@ -179,7 +199,7 @@ func createFileHandler(o wmenu.Opt) error {
 func writeToFileHandler(o wmenu.Opt) error {
 	text := getInputText()
 
-	file, err := os.Open(fmt.Sprintf("%s/%s", filesDir, o.Text))
+	file, err := os.OpenFile(fmt.Sprintf("%s/%s", filesDir, o.Text), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 777)
 
 	if err != nil {
 		log.Fatal(err)
@@ -205,7 +225,7 @@ func readFileHandler(o wmenu.Opt) error {
 
 	defer goToMainMenuHandler()
 
-	fmt.Println(fileContent)
+	fmt.Println(string(fileContent))
 
 	return nil
 }
