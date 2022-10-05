@@ -1,4 +1,4 @@
-package main
+package fileworker
 
 import (
 	"bufio"
@@ -7,17 +7,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Ten-Tale/task-1/helpers/menuhelper"
 	"github.com/dixonwille/wmenu"
 )
 
-const filesDir string = "files"
+const filesDir = "files"
 
-type option struct {
-	title   string
-	handler func(wmenu.Opt) error
-}
-
-func main() {
+func RunFileWorker() {
 	if _, err := os.Stat(filesDir); os.IsNotExist(err) {
 		err = os.Mkdir(filesDir, 0777)
 
@@ -37,47 +33,53 @@ func createMenuTemplate(key string) error {
 
 	switch key {
 	case "MAIN":
-		applyOptionList(menu, []option{
+		menuhelper.ApplyOptionList(menu, []menuhelper.Option{
 			{
-				"Create file",
-				func(o wmenu.Opt) error {
+				Title: "Create file",
+				Handler: func(o wmenu.Opt) error {
 					createMenuTemplate("CREATE_FILE")
 					return nil
 				},
 			},
 			{
-				"Write to file",
-				func(o wmenu.Opt) error {
+				Title: "Write to file",
+				Handler: func(o wmenu.Opt) error {
 					createMenuTemplate("WRITE_TO_FILE")
 					return nil
 				},
 			},
 			{
-				"Read file",
-				func(o wmenu.Opt) error {
+				Title: "Read file",
+				Handler: func(o wmenu.Opt) error {
 					createMenuTemplate("READ_FILE")
 					return nil
 				},
 			},
 			{
-				"Delete file",
-				func(o wmenu.Opt) error {
+				Title: "Delete file",
+				Handler: func(o wmenu.Opt) error {
 					createMenuTemplate("DELETE_FILE")
+					return nil
+				},
+			},
+			{
+				Title: "Go to main menu",
+				Handler: func(o wmenu.Opt) error {
 					return nil
 				},
 			},
 		})
 
 	case "CREATE_FILE":
-		applyOptionList(menu, []option{
+		menuhelper.ApplyOptionList(menu, []menuhelper.Option{
 			{
-				"Create file",
-				createFileHandler,
+				Title:   "Create file",
+				Handler: createFileHandler,
 			},
 		})
 
 	case "WRITE_TO_FILE":
-		var optionList []option
+		var optionList []menuhelper.Option
 
 		fileList := listFiles()
 
@@ -88,16 +90,16 @@ func createMenuTemplate(key string) error {
 		}
 
 		for _, file := range fileList {
-			optionList = append(optionList, option{
-				title:   file,
-				handler: writeToFileHandler,
+			optionList = append(optionList, menuhelper.Option{
+				Title:   file,
+				Handler: writeToFileHandler,
 			})
 		}
 
-		applyOptionList(menu, optionList)
+		menuhelper.ApplyOptionList(menu, optionList)
 
 	case "READ_FILE":
-		var optionList []option
+		var optionList []menuhelper.Option
 
 		fileList := listFiles()
 
@@ -108,16 +110,16 @@ func createMenuTemplate(key string) error {
 		}
 
 		for _, file := range fileList {
-			optionList = append(optionList, option{
-				title:   file,
-				handler: readFileHandler,
+			optionList = append(optionList, menuhelper.Option{
+				Title:   file,
+				Handler: readFileHandler,
 			})
 		}
 
-		applyOptionList(menu, optionList)
+		menuhelper.ApplyOptionList(menu, optionList)
 
 	case "DELETE_FILE":
-		var optionList []option
+		var optionList []menuhelper.Option
 
 		fileList := listFiles()
 
@@ -128,13 +130,13 @@ func createMenuTemplate(key string) error {
 		}
 
 		for _, file := range fileList {
-			optionList = append(optionList, option{
-				title:   file,
-				handler: deleteFileHandler,
+			optionList = append(optionList, menuhelper.Option{
+				Title:   file,
+				Handler: deleteFileHandler,
 			})
 		}
 
-		applyOptionList(menu, optionList)
+		menuhelper.ApplyOptionList(menu, optionList)
 	}
 
 	if key != "MAIN" {
@@ -145,12 +147,6 @@ func createMenuTemplate(key string) error {
 	}
 
 	return menu.Run()
-}
-
-func applyOptionList(m *wmenu.Menu, ol []option) {
-	for _, o := range ol {
-		m.Option(o.title, nil, false, o.handler)
-	}
 }
 
 func listFiles() []string {
@@ -187,8 +183,10 @@ func getInputText() string {
 func createFileHandler(o wmenu.Opt) error {
 	text := getInputText()
 
-	if _, err := os.Create(fmt.Sprintf("%s/%s", filesDir, text)); err != nil {
+	if file, err := os.Create(fmt.Sprintf("%s/%s", filesDir, text)); err != nil {
 		log.Fatal(err)
+	} else {
+		file.Close()
 	}
 
 	defer goToMainMenuHandler()
@@ -199,7 +197,7 @@ func createFileHandler(o wmenu.Opt) error {
 func writeToFileHandler(o wmenu.Opt) error {
 	text := getInputText()
 
-	file, err := os.OpenFile(fmt.Sprintf("%s/%s", filesDir, o.Text), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 777)
+	file, err := os.OpenFile(fmt.Sprintf("%s/%s", filesDir, o.Text), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0777)
 
 	if err != nil {
 		log.Fatal(err)

@@ -1,4 +1,4 @@
-package main
+package filesystem
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/shirou/gopsutil/disk"
 )
 
-func main() {
+func ShowDeviceInfo() {
 
 	partitionList, err := disk.Partitions(true)
 

@@ -1,4 +1,6 @@
-**/.vscode
-**/__debug_bin
+.vscode
+__debug_bin
 
-task-1-fileworker/files
+/files
+/jsonFiles
+/xmlfiles
