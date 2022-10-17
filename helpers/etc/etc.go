@@ -6,6 +6,7 @@ import (
 	"github.com/Ten-Tale/task-1/fileworker"
 	"github.com/Ten-Tale/task-1/filexml"
 	"github.com/Ten-Tale/task-1/helpers/menuhelper"
+	"github.com/Ten-Tale/task-1/zip"
 	"github.com/dixonwille/wmenu"
 )
 
@@ -47,6 +48,15 @@ func CreateMainMenu() {
 			Title: "XML worker",
 			Handler: func(o wmenu.Opt) error {
 				filexml.RunXMLFileWorker()
+				CreateMainMenu()
+
+				return nil
+			},
+		},
+		{
+			Title: "ZIP worker",
+			Handler: func(o wmenu.Opt) error {
+				zip.RunZIPWorker()
 				CreateMainMenu()
 
 				return nil
