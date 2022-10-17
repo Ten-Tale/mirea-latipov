@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -14,8 +15,9 @@ import (
 )
 
 const (
-	filesDir    = "filesToArchieve"
-	archivesDir = "archieves"
+	filesDir       = "filesToArchieve"
+	archivesDir    = "archieves"
+	unarchievedDir = "unarchievedFiles"
 )
 
 func RunZIPWorker() {
@@ -29,6 +31,14 @@ func RunZIPWorker() {
 
 	if _, err := os.Stat(archivesDir); os.IsNotExist(err) {
 		err = os.Mkdir(archivesDir, 0777)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	if _, err := os.Stat(unarchievedDir); os.IsNotExist(err) {
+		err = os.Mkdir(unarchievedDir, 0777)
 
 		if err != nil {
 			log.Fatal(err)
@@ -68,14 +78,6 @@ func createMenuTemplate(key string) error {
 					return nil
 				},
 			},
-			{
-				Title: "Delete file",
-				Handler: func(o wmenu.Opt) error {
-					createMenuTemplate("DELETE_FILE")
-					return nil
-				},
-			},
-
 			{
 				Title: "Delete archieve",
 				Handler: func(o wmenu.Opt) error {
@@ -118,26 +120,6 @@ func createMenuTemplate(key string) error {
 		}
 
 		menuhelper.ApplyOptionList(menu, optionList)
-
-		// case "LIST_FILES_TO_ARCHIEVE":
-		// 	var optionList []menuhelper.Option
-
-		// 	fileList := listFiles()
-
-		// 	if len(fileList) == 0 {
-		// 		fmt.Println("No files that you can write to archieve")
-		// 		goToMainMenuHandler()
-		// 		break
-		// 	}
-
-		// 	for _, file := range fileList {
-		// 		optionList = append(optionList, menuhelper.Option{
-		// 			Title: file,
-		// 			// Handler: func(o wmenu.Opt) error { return nil },
-		// 		})
-		// 	}
-
-		menuhelper.ApplyOptionList(menu, optionList)
 	case "READ_FILE":
 		var optionList []menuhelper.Option
 
@@ -158,21 +140,21 @@ func createMenuTemplate(key string) error {
 
 		menuhelper.ApplyOptionList(menu, optionList)
 
-	case "DELETE_FILE":
+	case "DELETE_ARCHIEVE":
 		var optionList []menuhelper.Option
 
-		fileList := listFiles()
+		archieveList := listArchieves()
 
-		if len(fileList) == 0 {
-			fmt.Println("No files to delete")
+		if len(archieveList) == 0 {
+			fmt.Println("No archieves to delete")
 			goToMainMenuHandler()
 			break
 		}
 
-		for _, file := range fileList {
+		for _, archieve := range archieveList {
 			optionList = append(optionList, menuhelper.Option{
-				Title: file,
-				// Handler: deleteFileHandler,
+				Title:   archieve,
+				Handler: deleteArchieveHandler,
 			})
 		}
 
@@ -346,15 +328,15 @@ func unarchieveAndReadFileHandler(o wmenu.Opt) error {
 	archieveReader := chooseArchieve(o.Text)
 	defer archieveReader.Close()
 
-	var chosenFile *zip.File
+	var chosenFile zip.File
 
-	err := chooseFileToUnarchieve(archieveReader.File, chosenFile)
+	err := chooseFileToUnarchieve(archieveReader.File, &chosenFile)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	readFileFromArchieve(chosenFile)
+	readFileFromArchieve(&chosenFile)
 
 	return nil
 }
@@ -394,25 +376,59 @@ func readFileFromArchieve(file *zip.File) error {
 		return fmt.Errorf(msg, file.Name, err)
 	}
 
-	fmt.Println()
+	destinationFile, err := os.OpenFile(fmt.Sprintf("%s/%s", unarchievedDir, file.Name), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+	if err != nil {
+		return err
+	}
+	defer destinationFile.Close()
+
+	if _, err := io.Copy(destinationFile, fileread); err != nil {
+		return err
+	}
+
+	content, err := os.ReadFile(destinationFile.Name())
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(string(content))
 
 	return nil
 }
 
 func wrapFileHandler(file *zip.File) func(wmenu.Opt) error {
 	return func(o wmenu.Opt) error {
-		value, isFile := (o.Value).(zip.File)
-
-		*file = value
+		value, isFile := (o.Value).(*zip.File)
 
 		if !isFile {
 			log.Fatal("is not zip file")
 		}
 
+		*file = *value
+
 		return nil
 	}
 }
 
-func deleteFileHandler() {}
+func deleteFileFromArchieveHandler(o wmenu.Opt) error {
+	err := os.Remove(fmt.Sprintf("%s/%s", archivesDir, o.Text))
+	if err != nil {
+		log.Fatal(err)
+	}
 
-func deleteArchieveHadndler() {}
+	defer goToMainMenuHandler()
+
+	return nil
+}
+
+func deleteArchieveHandler(o wmenu.Opt) error {
+	err := os.Remove(fmt.Sprintf("%s/%s", archivesDir, o.Text))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer goToMainMenuHandler()
+
+	return nil
+}
